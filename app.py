@@ -148,43 +148,45 @@ def ask_ai():
     if not GEMINI_API_KEY:
         return jsonify({"reply": "API Key কনফিগার করা হয়নি!"})
 
-    # গুগলের অফিশিয়াল একটিভ মডেলগুলোর সঠিক তালিকা
-    candidate_models = [
+    # গুগলের অফিশিয়াল ১০০০% কার্যকর মডেলগুলোর তালিকা
+    models_to_try = [
         "gemini-1.5-flash",
-        "gemini-1.5-flash-latest",
+        "gemini-1.5-flash-8b",
         "gemini-1.5-pro",
-        "gemini-2.0-flash",
-        "gemini-pro"
+        "gemini-2.0-flash-exp"
     ]
 
-    payload = {
-        "system_instruction": {
-            "parts": [{"text": SYSTEM_INSTRUCTION}]
-        },
-        "contents": [
-            {"parts": [{"text": user_prompt}]}
-        ]
-    }
-    headers = {"Content-Type": "application/json"}
+    last_err = ""
 
-    last_error = ""
-
-    # ক্রমান্বয়ে ট্রাই করবে যেটি কাজ করবে সেটি দিয়েই সাথে সাথে রেসপন্স ব্যাক করবে
-    for model_name in candidate_models:
+    for model_name in models_to_try:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={GEMINI_API_KEY}"
+        
+        payload = {
+            "contents": [
+                {
+                    "role": "user",
+                    "parts": [
+                        {"text": f"{SYSTEM_INSTRUCTION}\n\nইউজারের প্রশ্ন: {user_prompt}"}
+                    ]
+                }
+            ]
+        }
+        
+        headers = {"Content-Type": "application/json"}
+
         try:
-            res = requests.post(url, json=payload, headers=headers, timeout=15)
+            res = requests.post(url, json=payload, headers=headers, timeout=12)
             res_data = res.json()
 
             if res.status_code == 200 and 'candidates' in res_data:
                 reply_text = res_data['candidates'][0]['content']['parts'][0]['text']
                 return jsonify({"reply": reply_text})
             else:
-                last_error = res_data.get('error', {}).get('message', res.text)
+                last_err = res_data.get('error', {}).get('message', res.text)
         except Exception as e:
-            last_error = str(e)
+            last_err = str(e)
 
-    return jsonify({"reply": f"প্রসেসিং ত্রুটি: {last_error}"})
+    return jsonify({"reply": f"প্রসেসিং ত্রুটি: {last_err}"})
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
