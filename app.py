@@ -133,22 +133,6 @@ UI_TEMPLATE = """
 </html>
 """
 
-def get_available_model_name():
-    """আপনার এপিআই কি এর আওতায় গুগলে যে মডেল একটিভ আছে তা অটোমেটিক খুঁজে বের করবে"""
-    try:
-        list_url = f"https://generativelanguage.googleapis.com/v1beta/models?key={GEMINI_API_KEY}"
-        res = requests.get(list_url, timeout=10)
-        if res.status_code == 200:
-            models_data = res.json().get('models', [])
-            for m in models_data:
-                methods = m.get('supportedGenerationMethods', [])
-                name = m.get('name', '')
-                if 'generateContent' in methods and ('flash' in name or 'pro' in name):
-                    return name
-    except Exception:
-        pass
-    return "models/gemini-2.0-flash"
-
 @app.route('/')
 def home():
     return render_template_string(UI_TEMPLATE)
@@ -164,36 +148,43 @@ def ask_ai():
     if not GEMINI_API_KEY:
         return jsonify({"reply": "API Key কনফিগার করা হয়নি!"})
 
-    # আপনার API Key দিয়ে গুগলের একটিভ মডেল অটোমেটিক সিলেক্ট হবে
-    active_model = get_available_model_name()
-    
-    url = f"https://generativelanguage.googleapis.com/v1beta/{active_model}:generateContent?key={GEMINI_API_KEY}"
-    
+    # গুগলের অফিশিয়াল একটিভ মডেলগুলোর সঠিক তালিকা
+    candidate_models = [
+        "gemini-1.5-flash",
+        "gemini-1.5-flash-latest",
+        "gemini-1.5-pro",
+        "gemini-2.0-flash",
+        "gemini-pro"
+    ]
+
     payload = {
         "system_instruction": {
             "parts": [{"text": SYSTEM_INSTRUCTION}]
         },
         "contents": [
-            {
-                "parts": [{"text": user_prompt}]
-            }
+            {"parts": [{"text": user_prompt}]}
         ]
     }
-    
     headers = {"Content-Type": "application/json"}
 
-    try:
-        res = requests.post(url, json=payload, headers=headers, timeout=20)
-        res_data = res.json()
+    last_error = ""
 
-        if res.status_code == 200:
-            reply_text = res_data['candidates'][0]['content']['parts'][0]['text']
-            return jsonify({"reply": reply_text})
-        else:
-            err_msg = res_data.get('error', {}).get('message', res.text)
-            return jsonify({"reply": f"প্রসেসিং ত্রুটি: {err_msg}"})
-    except Exception as e:
-        return jsonify({"reply": f"প্রসেসিং ত্রুটি: {str(e)}"})
+    # ক্রমান্বয়ে ট্রাই করবে যেটি কাজ করবে সেটি দিয়েই সাথে সাথে রেসপন্স ব্যাক করবে
+    for model_name in candidate_models:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={GEMINI_API_KEY}"
+        try:
+            res = requests.post(url, json=payload, headers=headers, timeout=15)
+            res_data = res.json()
+
+            if res.status_code == 200 and 'candidates' in res_data:
+                reply_text = res_data['candidates'][0]['content']['parts'][0]['text']
+                return jsonify({"reply": reply_text})
+            else:
+                last_error = res_data.get('error', {}).get('message', res.text)
+        except Exception as e:
+            last_error = str(e)
+
+    return jsonify({"reply": f"প্রসেসিং ত্রুটি: {last_error}"})
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
