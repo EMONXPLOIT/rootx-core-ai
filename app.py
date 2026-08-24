@@ -150,19 +150,27 @@ def ask_ai():
     if not client:
         return jsonify({"reply": "API Key কনফিগার করা হয়নি!"})
 
-    try:
-        response = client.models.generate_content(
-            model='gemini-1.5-flash',
-            contents=user_prompt,
-            config=types.GenerateContentConfig(
-                system_instruction=SYSTEM_INSTRUCTION,
-                temperature=0.7
-            )
-        )
-        return jsonify({"reply": response.text})
+    # যে মডেলই এভেলেবল থাকুক, অটো-কানেক্ট করবে
+    models_to_try = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash']
+    last_error = None
 
-    except Exception as e:
-        return jsonify({"reply": f"প্রসেসিং ত্রুটি: {str(e)}"})
+    for model_name in models_to_try:
+        try:
+            response = client.models.generate_content(
+                model=model_name,
+                contents=user_prompt,
+                config=types.GenerateContentConfig(
+                    system_instruction=SYSTEM_INSTRUCTION,
+                    temperature=0.7
+                )
+            )
+            if response and response.text:
+                return jsonify({"reply": response.text})
+        except Exception as e:
+            last_error = str(e)
+            continue
+
+    return jsonify({"reply": f"প্রসেসিং ত্রুটি: {last_error}"})
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
