@@ -1,12 +1,10 @@
 import os
 from flask import Flask, render_template_string, request, jsonify
-import google.generativeai as genai
+import requests
 
 app = Flask(__name__)
 
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
-if GEMINI_API_KEY:
-    genai.configure(api_key=GEMINI_API_KEY)
 
 SYSTEM_INSTRUCTION = """
 তুমি 'ROOTX CORE - OMNI INFINITY DATABASE'। 
@@ -150,15 +148,45 @@ def ask_ai():
     if not GEMINI_API_KEY:
         return jsonify({"reply": "API Key কনফিগার করা হয়নি!"})
 
-    try:
-        model = genai.GenerativeModel(
-            model_name='gemini-1.5-flash',
-            system_instruction=SYSTEM_INSTRUCTION
-        )
-        response = model.generate_content(user_prompt)
-        return jsonify({"reply": response.text})
-    except Exception as e:
-        return jsonify({"reply": f"প্রসেসিং ত্রুটি: {str(e)}"})
+    # গুগলের এভেলেবল মডেলগুলো একে একে ট্রাই করবে
+    models_to_try = [
+        "gemini-2.5-flash",
+        "gemini-2.0-flash",
+        "gemini-1.5-flash",
+        "gemini-flash"
+    ]
+
+    last_error_msg = ""
+
+    for model_id in models_to_try:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_id}:generateContent?key={GEMINI_API_KEY}"
+        
+        payload = {
+            "system_instruction": {
+                "parts": [{"text": SYSTEM_INSTRUCTION}]
+            },
+            "contents": [
+                {
+                    "parts": [{"text": user_prompt}]
+                }
+            ]
+        }
+        
+        headers = {"Content-Type": "application/json"}
+
+        try:
+            res = requests.post(url, json=payload, headers=headers, timeout=15)
+            res_data = res.json()
+
+            if res.status_code == 200:
+                reply_text = res_data['candidates'][0]['content']['parts'][0]['text']
+                return jsonify({"reply": reply_text})
+            else:
+                last_error_msg = res_data.get('error', {}).get('message', res.text)
+        except Exception as e:
+            last_error_msg = str(e)
+
+    return jsonify({"reply": f"প্রসেসিং ত্রুটি: {last_error_msg}"})
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
