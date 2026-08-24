@@ -1,12 +1,12 @@
 import os
 from flask import Flask, render_template_string, request, jsonify
-from google import genai
-from google.genai import types
+import google.generativeai as genai
 
 app = Flask(__name__)
 
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
-client = genai.Client(api_key=GEMINI_API_KEY) if GEMINI_API_KEY else None
+if GEMINI_API_KEY:
+    genai.configure(api_key=GEMINI_API_KEY)
 
 SYSTEM_INSTRUCTION = """
 তুমি 'ROOTX CORE - OMNI INFINITY DATABASE'। 
@@ -147,30 +147,18 @@ def ask_ai():
     if not user_prompt:
         return jsonify({"reply": "ইনপুট খালি, স্যার!"})
 
-    if not client:
+    if not GEMINI_API_KEY:
         return jsonify({"reply": "API Key কনফিগার করা হয়নি!"})
 
-    # যে মডেলই এভেলেবল থাকুক, অটো-কানেক্ট করবে
-    models_to_try = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash']
-    last_error = None
-
-    for model_name in models_to_try:
-        try:
-            response = client.models.generate_content(
-                model=model_name,
-                contents=user_prompt,
-                config=types.GenerateContentConfig(
-                    system_instruction=SYSTEM_INSTRUCTION,
-                    temperature=0.7
-                )
-            )
-            if response and response.text:
-                return jsonify({"reply": response.text})
-        except Exception as e:
-            last_error = str(e)
-            continue
-
-    return jsonify({"reply": f"প্রসেসিং ত্রুটি: {last_error}"})
+    try:
+        model = genai.GenerativeModel(
+            model_name='gemini-1.5-flash',
+            system_instruction=SYSTEM_INSTRUCTION
+        )
+        response = model.generate_content(user_prompt)
+        return jsonify({"reply": response.text})
+    except Exception as e:
+        return jsonify({"reply": f"প্রসেসিং ত্রুটি: {str(e)}"})
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
