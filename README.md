@@ -16,7 +16,7 @@
 
 ## 📑 OVERVIEW
 
-**ROOTX OMNI-CORE V20.0** হলো একটি হাই-পারফরম্যান্স, ডার্ক-হ্যাকার থিমযুক্ত টার্মিনাল সিস্টেম। এটি ফ্লাস্ক (Flask) আর্কিটেকচারের উপর ভিত্তি করে তৈরি এবং রেন্ডার (Render) ও ক্লাউড সার্ভারে কোনো প্রকার ল্যাগ ছাড়াই রিয়েল-টাইমে কাজ করতে সক্ষম। 
+**ROOTX OMNI-CORE V20.0** is an elite, next-generation Cyber-Intelligence Engine architected exclusively for High-Velocity Execution, Secure Data Routing, and Autonomous Terminal Logic. Engineered with a custom Flask micro-backend and deploying high-density Matrix algorithms, this core delivers an ultra-fast, zero-latency dark workspace optimized for cloud servers and advanced dev environments.
 
 ---
 
