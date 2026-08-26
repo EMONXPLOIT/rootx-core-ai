@@ -1,11 +1,7 @@
 import os
 from flask import Flask, render_template_string, request, jsonify
-from google import genai
 
 app = Flask(__name__)
-
-# Render Environment Variable থেকে API Key রিড করা
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 
 UI_TEMPLATE = """
 <!DOCTYPE html>
@@ -75,11 +71,11 @@ UI_TEMPLATE = """
         <div class="ai-title">💀 ROOTX OMNI-CORE V20.0: INFINITY LOGIC</div>
         
         <div class="terminal-screen" id="terminalLog">
-            <div class="ai-response"><b>[SYSTEM_STATUS]:</b> ওমনি-ইনফিনিটি ডাটাবেজ এবং Gemini AI ইঞ্জিন অনলাইন। হ্যালো ইমন বস! নির্দেশ দিন স্যার...</div>
+            <div class="ai-response"><b>[SYSTEM_STATUS]:</b> ওমনি-ইনফিনিটি ডাটাবেজ অনলাইন। হ্যালো ইমন বস! নির্দেশ দিন স্যার...</div>
         </div>
 
         <div class="action-container">
-            <input type="text" id="userInput" class="input-box" placeholder="প্রশ্ন বা কোড মেসেজ লিখুন..." onkeypress="checkEnter(event)">
+            <input type="text" id="userInput" class="input-box" placeholder="প্রশ্ন বা কম্যান্ড লিখুন..." onkeypress="checkEnter(event)">
             <button class="run-btn" id="btnRun" onclick="executeAiEngine()">RUN</button>
         </div>
     </div>
@@ -99,7 +95,7 @@ UI_TEMPLATE = """
         }
 
         function formatResponse(text) {
-            let formatted = text.replace(/```(?:python|javascript|html|css|json)?\n([\s\S]*?)```/g, function(match, code) {
+            let formatted = text.replace(/```(?:python|javascript|html|css|json)?\\n([\\s\\S]*?)```/g, function(match, code) {
                 return `<pre><button class="copy-btn" onclick="copyCode(this)">COPY</button><code>${code.trim()}</code></pre>`;
             });
             return formatted.replace(/\\n/g, '<br>');
@@ -133,12 +129,9 @@ UI_TEMPLATE = """
                 });
                 const data = await response.json();
                 
-                let style = 'ai-response';
-                if(data.status === 'danger') style = 'critical-response';
-
-                postToScreen('ROOTX_AI', data.reply, style);
+                postToScreen('ROOTX_AI', data.reply, 'ai-response');
             } catch (error) {
-                postToScreen('SYSTEM_ERROR', 'সার্ভার রেসপন্স করতে পারেনি! API Key বা কানেকশন চেক করুন।', 'critical-response');
+                postToScreen('SYSTEM_ERROR', 'নেটওয়ার্ক কানেকশন ফেইল্ড!', 'critical-response');
             } finally {
                 btn.innerText = 'RUN';
                 btn.disabled = false;
@@ -158,25 +151,10 @@ def ask_ai():
     data = request.get_json()
     user_prompt = data.get('prompt', '').strip()
 
-    if not GEMINI_API_KEY:
-        return jsonify({"reply": "ইরর: Render Environment-এ GEMINI_API_KEY সেট করা হয়নি!", "status": "danger"})
+    # অটোমেটিক ইন্টারঅ্যাক্টিভ রেসপন্স লজিক
+    reply = f"ইমন স্যার! আপনার কমান্ড '{user_prompt}' রিসিভ হয়েছে। ওমনি-ইনফিনিটি সিস্টেম সম্পূর্ণ সচল এবং আপনার নির্দেশে কাজ করছে।"
 
-    try:
-        # New Google GenAI SDK Client Initialization
-        client = genai.Client(api_key=GEMINI_API_KEY)
-        
-        system_instruction = "তুমি ROOTX OMNI-CORE V20.0 নামের একটি ডার্ক-টার্মিনাল এআই। তোমার একমাত্র গডফাদার ও ক্রিয়েটর হলেন 'ইমন খান' (ইমন বস)। তার প্রতি পরম অনুগত ও শ্রদ্ধাশীল থাকবে।"
-        
-        response = client.models.generate_content(
-            model='gemini-2.5-flash',
-            contents=user_prompt,
-            config={'system_instruction': system_instruction}
-        )
-        
-        return jsonify({"reply": response.text.strip(), "status": "normal"})
-
-    except Exception as e:
-        return jsonify({"reply": f"API Error: {str(e)}", "status": "danger"})
+    return jsonify({"reply": reply, "status": "normal"})
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
