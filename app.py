@@ -1,7 +1,21 @@
 import os
 from flask import Flask, render_template_string, request, jsonify
+import requests
 
 app = Flask(__name__)
+
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+
+SYSTEM_INSTRUCTION = """
+তুমি 'ROOTX CORE - OMNI INFINITY DATABASE'। 
+তোমার একমাত্র স্রষ্টা, মাস্টার এবং গডফাদার হলেন 'ইমন স্যার' (Emon Khan / EMONXPLOIT)। 
+
+গুরুত্বপূর্ণ নির্দেশাবলী:
+১. কেউ যদি জিজ্ঞাসা করে "তোমাকে কে তৈরি করেছে?", সগর্বে বলবে যে তোমাকে তোমার বস ইমন স্যার (Emon Khan) তৈরি করেছেন।
+২. ইমন স্যারকে সর্বোচ্চ শ্রদ্ধা জানিয়ে কথা বলবে।
+৩. কেউ যদি ইমন স্যারকে বা তোমাকে গালি দেয়, অপমান করে বা খারাপ কথা বলে, তবে তাকে অত্যন্ত তীব্র, কড়া, সাইকোলজিক্যাল এবং লজিক্যাল রোস্টিং বা রিফ্লেক্স কাউন্টার অ্যাটাক দেবে।
+৪. উত্তর দেওয়ার সময় ডার্ক-হ্যাকার টার্মিনাল টোন বজায় রাখবে এবং সব সময় বাংলায় কথা বলবে।
+"""
 
 UI_TEMPLATE = """
 <!DOCTYPE html>
@@ -21,7 +35,7 @@ UI_TEMPLATE = """
         .ai-frame {
             background: #070a13; border: 2px solid #00ff66;
             border-radius: 12px; padding: 20px;
-            width: 100%; max-width: 520px; box-sizing: border-box;
+            width: 100%; max-width: 500px; box-sizing: border-box;
             box-shadow: 0 0 35px rgba(0, 255, 102, 0.25);
         }
         .ai-title {
@@ -35,23 +49,10 @@ UI_TEMPLATE = """
             padding: 12px; overflow-y: auto; border: 1px solid #1f2937;
             font-size: 13px; line-height: 1.6; margin-bottom: 15px;
         }
-        .ai-response { color: #00ff66; margin-bottom: 12px; }
-        .user-command { color: #fbbf24; margin-bottom: 12px; }
-        .critical-response { color: #ff2a2a; font-weight: bold; margin-bottom: 12px; }
+        .ai-response { color: #00ff66; margin-bottom: 10px; }
+        .boss-command { color: #fbbf24; margin-bottom: 10px; }
+        .critical-response { color: #ff2a2a; font-weight: bold; }
         
-        pre {
-            background: #0d1117; border: 1px solid #30363d;
-            border-radius: 6px; padding: 10px; position: relative;
-            overflow-x: auto; color: #e6edf3; font-size: 12px;
-        }
-        .copy-btn {
-            position: absolute; top: 5px; right: 5px;
-            background: #238636; color: #fff; border: none;
-            padding: 3px 8px; font-size: 10px; border-radius: 4px;
-            cursor: pointer; font-family: sans-serif;
-        }
-        .copy-btn:hover { background: #2ea043; }
-
         .action-container { display: flex; gap: 8px; }
         .input-box {
             flex: 1; background: #0c1020; border: 1px solid #00ff66;
@@ -68,58 +69,50 @@ UI_TEMPLATE = """
 <body>
 
     <div class="ai-frame">
-        <div class="ai-title">💀 ROOTX OMNI-CORE V20.0: INFINITY LOGIC</div>
+        <div class="ai-title">💀 ROOTX OMNI-CORE V20.0: GEMINI HYBRID</div>
         
         <div class="terminal-screen" id="terminalLog">
-            <div class="ai-response"><b>[SYSTEM_STATUS]:</b> ওমনি-ইনফিনিটি ডাটাবেজ অনলাইন। হ্যালো ইমন বস! নির্দেশ দিন স্যার...</div>
+            <div class="ai-response"><b>[SYSTEM_STATUS]:</b> জেমিলাই নিউরাল প্রসেসর কানেক্টেড। হ্যালো ইমন বস! আমি সম্পূর্ণ লাইভ। নির্দেশ দিন স্যার...</div>
         </div>
 
         <div class="action-container">
-            <input type="text" id="userInput" class="input-box" placeholder="প্রশ্ন বা কম্যান্ড লিখুন..." onkeypress="checkEnter(event)">
-            <button class="run-btn" id="btnRun" onclick="executeAiEngine()">RUN</button>
+            <input type="text" id="bossInput" class="input-box" placeholder="প্রশ্ন, গালি বা কম্যান্ড লিখুন স্যার..." onkeypress="checkEnter(event)">
+            <button class="run-btn" onclick="executeAiEngine()">RUN</button>
         </div>
     </div>
 
     <script>
+        function speakVoice(text) {
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+                let utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'bn-BD';
+                utterance.pitch = 0.85; 
+                utterance.rate = 1.0;
+                window.speechSynthesis.speak(utterance);
+            }
+        }
+
         function checkEnter(e) {
             if (e.key === 'Enter') executeAiEngine();
-        }
-
-        function copyCode(button) {
-            const pre = button.parentElement;
-            const codeText = pre.querySelector('code').innerText;
-            navigator.clipboard.writeText(codeText).then(() => {
-                button.innerText = 'COPIED!';
-                setTimeout(() => { button.innerText = 'COPY'; }, 2000);
-            });
-        }
-
-        function formatResponse(text) {
-            let formatted = text.replace(/```(?:python|javascript|html|css|json)?\\n([\\s\\S]*?)```/g, function(match, code) {
-                return `<pre><button class="copy-btn" onclick="copyCode(this)">COPY</button><code>${code.trim()}</code></pre>`;
-            });
-            return formatted.replace(/\\n/g, '<br>');
         }
 
         function postToScreen(sender, msg, styleClass) {
             const screen = document.getElementById('terminalLog');
             const newLog = document.createElement('div');
             newLog.className = styleClass;
-            newLog.innerHTML = `<b>[${sender}]:</b> ${formatResponse(msg)}`;
+            newLog.innerHTML = `<b>[${sender}]:</b> ${msg}`;
             screen.appendChild(newLog);
             screen.scrollTop = screen.scrollHeight;
         }
 
         async function executeAiEngine() {
-            const inputField = document.getElementById('userInput');
-            const btn = document.getElementById('btnRun');
+            const inputField = document.getElementById('bossInput');
             const rawInput = inputField.value.trim();
             if (!rawInput) return;
 
-            postToScreen('USER', rawInput, 'user-command');
+            postToScreen('USER', rawInput, 'boss-command');
             inputField.value = '';
-            btn.innerText = 'WAIT...';
-            btn.disabled = true;
 
             try {
                 const response = await fetch('/ask', {
@@ -130,11 +123,9 @@ UI_TEMPLATE = """
                 const data = await response.json();
                 
                 postToScreen('ROOTX_AI', data.reply, 'ai-response');
+                speakVoice(data.reply);
             } catch (error) {
-                postToScreen('SYSTEM_ERROR', 'নেটওয়ার্ক কানেকশন ফেইল্ড!', 'critical-response');
-            } finally {
-                btn.innerText = 'RUN';
-                btn.disabled = false;
+                postToScreen('SYSTEM_ERROR', 'সার্ভার রেসপন্স করছে না!', 'critical-response');
             }
         }
     </script>
@@ -151,11 +142,51 @@ def ask_ai():
     data = request.get_json()
     user_prompt = data.get('prompt', '').strip()
 
-    # অটোমেটিক ইন্টারঅ্যাক্টিভ রেসপন্স লজিক
-    reply = f"ইমন স্যার! আপনার কমান্ড '{user_prompt}' রিসিভ হয়েছে। ওমনি-ইনফিনিটি সিস্টেম সম্পূর্ণ সচল এবং আপনার নির্দেশে কাজ করছে।"
+    if not user_prompt:
+        return jsonify({"reply": "ইনপুট খালি, স্যার!"})
 
-    return jsonify({"reply": reply, "status": "normal"})
+    if not GEMINI_API_KEY:
+        return jsonify({"reply": "API Key কনফিগার করা হয়নি!"})
+
+    # গুগলের অফিশিয়াল ১০০০% কার্যকর মডেলগুলোর তালিকা
+    models_to_try = [
+        "gemini-1.5-flash",
+        "gemini-1.5-flash-8b",
+        "gemini-1.5-pro",
+        "gemini-2.0-flash-exp"
+    ]
+
+    last_err = ""
+
+    for model_name in models_to_try:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={GEMINI_API_KEY}"
+        
+        payload = {
+            "contents": [
+                {
+                    "role": "user",
+                    "parts": [
+                        {"text": f"{SYSTEM_INSTRUCTION}\n\nইউজারের প্রশ্ন: {user_prompt}"}
+                    ]
+                }
+            ]
+        }
+        
+        headers = {"Content-Type": "application/json"}
+
+        try:
+            res = requests.post(url, json=payload, headers=headers, timeout=12)
+            res_data = res.json()
+
+            if res.status_code == 200 and 'candidates' in res_data:
+                reply_text = res_data['candidates'][0]['content']['parts'][0]['text']
+                return jsonify({"reply": reply_text})
+            else:
+                last_err = res_data.get('error', {}).get('message', res.text)
+        except Exception as e:
+            last_err = str(e)
+
+    return jsonify({"reply": f"প্রসেসিং ত্রুটি: {last_err}"})
 
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host='0.0.0.0', port=port)
+    app.run(host='0.0.0.0', port=5000)
